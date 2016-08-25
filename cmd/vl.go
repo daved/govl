@@ -7,9 +7,12 @@ import (
 	"os"
 	"io/ioutil"
 	"regexp"
-	"github.com/spf13/cobra"
 	"net/http"
+	"net/url"
 	"time"
+	"strconv"
+
+	"github.com/spf13/cobra"
 	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
 )
@@ -64,15 +67,24 @@ func GrabUrls(filePath string) {
 
 	re := regexp.MustCompile(`(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s!()\[\]{};:\'".,<>?]))`)
 	urls := re.FindAll(file, -1)
+	if urls == nil {
+		fmt.Println(red("No URLs could be parsed"))
+		os.Exit(-1)
+	}
 	responses := GetStatusCodes(urls)
-	//goodStatus := regexp.MustCompile(`20[0-9]`)
-	//errorStatus := regexp.MustCompile(`([4|5][\d]{2}`)
 	errors := 0
 	ok := 0
+	var goodStatus bool
 	for _, result := range responses {
 		if result != nil && result.response != nil {
 			ok++;
-			fmt.Printf("[%s] %s \n", green(result.response.StatusCode), result.url)
+			status := strconv.Itoa(result.response.StatusCode)
+			goodStatus, err = regexp.MatchString("2\\d{2}", status)
+			if goodStatus {
+				fmt.Printf("[%s] %s \n", green(status), result.url)
+			} else {
+				fmt.Printf("[%s] %s \n", red(result.response.StatusCode), result.url)
+			}
 		} else {
 			errors++;
 			fmt.Printf("[%s] %s \n", red("ERROR"), result.url)
@@ -83,24 +95,37 @@ func GrabUrls(filePath string) {
 	fmt.Printf("Execution time: %s \n", green(elapsed))
 	fmt.Printf("Total errors: %s \n", red(errors))
 	fmt.Printf("Total OK: %s \n", green(ok))
+
+	if errors > 0 {
+		os.Exit(-1)
+	}
 }
 
 func GetStatusCodes(urls [][]byte) []*HttpResponse {
 	ch := make(chan *HttpResponse)
 	responses := []*HttpResponse{}
 	client := http.Client{
-		Timeout: time.Duration(2 * time.Second),
+		Timeout: time.Duration(time.Second),
 	}
-	for _, url := range urls {
-		url := string(url)
+
+	for _, urlBytes := range urls {
+		u , err := url.Parse(string(urlBytes))
+		if err != nil {
+			log.Fatalf("Could not parse %s \n", string(urlBytes))
+		}
+
+		if u.Scheme == "" {
+			u.Scheme = "http"
+		}
+
 		go func(url string) {
 			log.Debugf("Fetching %s \n", url)
-			res, err := client.Get(url)
+			res, err := client.Head(url)
 			ch <- &HttpResponse{url, res, err}
 			if err != nil && res != nil && res.StatusCode == http.StatusOK {
 				res.Body.Close()
 			}
-		}(url)
+		}(u.String())
 	}
 
 	for {
