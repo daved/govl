@@ -3,7 +3,7 @@ v(erify) l(inks)
 
 Go port (WIP) of python's [vl](https://github.com/ellisonleao/vl) lib
 
-Install
+Install:
 
 ```
 go get github.com/ellisonleao/govl
@@ -12,5 +12,9 @@ go get github.com/ellisonleao/govl
 Usage:
 
 ```bash
-govl FILEPATH [--debug]
+  vl [flags] DOC
+
+Flags:
+  -d, --debug         Debug mode
+  -t, --timeout int   HTTP Request Timeout (seconds) (default 5)
 ```
