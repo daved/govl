@@ -12,7 +12,7 @@ go get github.com/ellisonleao/govl
 Usage:
 
 ```bash
-  vl [flags] DOC
+  govl [flags] DOC
 
 Flags:
   -d, --debug         Debug mode
