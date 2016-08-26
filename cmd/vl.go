@@ -19,6 +19,7 @@ import (
 
 var Debug bool
 var Doc string
+var Timeout int
 
 var yellow = color.New(color.FgYellow).SprintFunc()
 var red = color.New(color.FgRed).SprintFunc()
@@ -55,6 +56,8 @@ func Execute() {
 
 func init() {
 	RootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Debug mode")
+	RootCmd.PersistentFlags().IntVarP(&Timeout, "timeout", "t", 5,
+		"HTTP Request Timeout (seconds)")
 }
 
 func GrabUrls(filePath string) {
@@ -102,10 +105,10 @@ func GrabUrls(filePath string) {
 }
 
 func GetStatusCodes(urls [][]byte) []*HttpResponse {
-	ch := make(chan *HttpResponse)
+	queue := make(chan *HttpResponse)
 	responses := []*HttpResponse{}
 	client := http.Client{
-		Timeout: time.Duration(time.Second),
+		Timeout: time.Duration(time.Duration(Timeout) * time.Second),
 	}
 
 	for _, urlBytes := range urls {
@@ -121,24 +124,21 @@ func GetStatusCodes(urls [][]byte) []*HttpResponse {
 		go func(url string) {
 			log.Debugf("Fetching %s \n", url)
 			res, err := client.Head(url)
-			ch <- &HttpResponse{url, res, err}
+			queue <- &HttpResponse{url, res, err}
 			if err != nil && res != nil && res.StatusCode == http.StatusOK {
 				res.Body.Close()
 			}
 		}(u.String())
 	}
 
-	for {
-		select {
-		case r := <-ch:
-			log.Debugf("%s was fetched ", r.url)
-			if r.err != nil {
-				log.Debugf("with an error \n", r.err)
-			}
-			responses = append(responses, r)
-			if len(responses) == len(urls) {
-				return responses
-			}
+	for r := range queue {
+		log.Debugf("%s was fetched ", r.url)
+		if r.err != nil {
+			log.Debugf("with an error \n", r.err)
+		}
+		responses = append(responses, r)
+		if len(responses) == len(urls) {
+			return responses
 		}
 	}
 	return responses
