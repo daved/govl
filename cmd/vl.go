@@ -56,7 +56,7 @@ func Execute() {
 
 func init() {
 	RootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Debug mode")
-	RootCmd.PersistentFlags().IntVarP(&Timeout, "timeout", "t", 5,
+	RootCmd.PersistentFlags().IntVarP(&Timeout, "timeout", "t", 1,
 		"HTTP Request Timeout (seconds)")
 }
 
@@ -66,6 +66,7 @@ func GrabUrls(filePath string) {
 	file, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("Could not open %s \n", red(filePath))
+		os.Exit(-1)
 	}
 
 	re := regexp.MustCompile(`(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s!()\[\]{};:\'".,<>?]))`)
