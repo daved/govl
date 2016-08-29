@@ -75,7 +75,7 @@ func GrabUrls(filePath string) {
 		os.Exit(-1)
 	}
 	responses := GetStatusCodes(urls)
-	errors := 0
+	var errors []*HttpResponse
 	ok := 0
 	var goodStatus bool
 	for _, result := range responses {
@@ -89,17 +89,21 @@ func GrabUrls(filePath string) {
 				fmt.Printf("[%s] %s \n", red(result.response.StatusCode), result.url)
 			}
 		} else {
-			errors++;
+			errors = append(errors, result);
 			fmt.Printf("[%s] %s \n", red("ERROR"), result.url)
 		}
 	}
 	fmt.Printf("%s URLs checked \n", green(len(responses)))
 	elapsed := time.Since(start)
 	fmt.Printf("Execution time: %s \n", green(elapsed))
-	fmt.Printf("Total errors: %s \n", red(errors))
+	fmt.Printf("Total errors: %s \n", red(len(errors)))
 	fmt.Printf("Total OK: %s \n", green(ok))
 
-	if errors > 0 {
+	if len(errors) > 0 {
+		fmt.Println(red("Some errors were found (Please check for false positives):"))
+		for _, result := range errors {
+			fmt.Printf("- [%s] Error: \n %s \n", yellow(result.url), red(result.err))
+		}
 		os.Exit(-1)
 	}
 }
