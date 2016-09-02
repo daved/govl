@@ -4,34 +4,34 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"io/ioutil"
-	"regexp"
 	"net/http"
 	"net/url"
-	"time"
+	"os"
+	"regexp"
 	"strconv"
+	"time"
 
-	"github.com/spf13/cobra"
 	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 )
 
-var Debug bool
-var Doc string
-var Timeout int
+var debug bool
+var doc string
+var timeout int
 
 var yellow = color.New(color.FgYellow).SprintFunc()
 var red = color.New(color.FgRed).SprintFunc()
 var green = color.New(color.FgGreen).SprintFunc()
 
-type HttpResponse struct {
-	url	string
+type httpResponse struct {
+	url      string
 	response *http.Response
-	err	error
+	err      error
 }
 
-var RootCmd = &cobra.Command{
+var vl = &cobra.Command{
 	Use:   "vl",
 	Short: "URL checker on Text files",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -39,28 +39,29 @@ var RootCmd = &cobra.Command{
 			fmt.Printf("%s \n", red("Missing DOC file"))
 			os.Exit(-1)
 		}
-		if (Debug) {
+		if debug {
 			log.SetLevel(log.DebugLevel)
 		}
 		path := args[0]
-		GrabUrls(path)
+		grabUrls(path)
 	},
 }
 
+// Execute is wrapper for the vl command
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
+	if err := vl.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
 }
 
 func init() {
-	RootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Debug mode")
-	RootCmd.PersistentFlags().IntVarP(&Timeout, "timeout", "t", 1,
+	vl.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug mode")
+	vl.PersistentFlags().IntVarP(&timeout, "timeout", "t", 1,
 		"HTTP Request Timeout (seconds)")
 }
 
-func GrabUrls(filePath string) {
+func grabUrls(filePath string) {
 	start := time.Now()
 
 	file, err := ioutil.ReadFile(filePath)
@@ -75,13 +76,13 @@ func GrabUrls(filePath string) {
 		fmt.Println(red("No URLs could be parsed"))
 		os.Exit(-1)
 	}
-	responses := GetStatusCodes(urls)
-	var errors []*HttpResponse
+	responses := getStatusCodes(urls)
+	var errors []*httpResponse
 	ok := 0
 	var goodStatus bool
 	for _, result := range responses {
 		if result != nil && result.response != nil {
-			ok++;
+			ok++
 			status := strconv.Itoa(result.response.StatusCode)
 			goodStatus, err = regexp.MatchString("2\\d{2}", status)
 			if goodStatus {
@@ -90,7 +91,7 @@ func GrabUrls(filePath string) {
 				fmt.Printf("[%s] %s \n", red(result.response.StatusCode), result.url)
 			}
 		} else {
-			errors = append(errors, result);
+			errors = append(errors, result)
 			fmt.Printf("[%s] %s \n", red("ERROR"), result.url)
 		}
 	}
@@ -109,15 +110,15 @@ func GrabUrls(filePath string) {
 	}
 }
 
-func GetStatusCodes(urls [][]byte) []*HttpResponse {
-	queue := make(chan *HttpResponse)
-	responses := []*HttpResponse{}
+func getStatusCodes(urls [][]byte) []*httpResponse {
+	queue := make(chan *httpResponse)
+	responses := []*httpResponse{}
 	client := http.Client{
-		Timeout: time.Duration(time.Duration(Timeout) * time.Second),
+		Timeout: time.Duration(time.Duration(timeout) * time.Second),
 	}
 
 	for _, urlBytes := range urls {
-		u , err := url.Parse(string(urlBytes))
+		u, err := url.Parse(string(urlBytes))
 		if err != nil {
 			log.Fatalf("Could not parse %s \n", string(urlBytes))
 		}
@@ -129,7 +130,7 @@ func GetStatusCodes(urls [][]byte) []*HttpResponse {
 		go func(url string) {
 			log.Debugf("Fetching %s \n", url)
 			res, err := client.Head(url)
-			queue <- &HttpResponse{url, res, err}
+			queue <- &httpResponse{url, res, err}
 			if err != nil && res != nil && res.StatusCode == http.StatusOK {
 				res.Body.Close()
 			}
