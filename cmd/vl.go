@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -113,8 +114,13 @@ func grabUrls(filePath string) {
 func getStatusCodes(urls [][]byte) []*httpResponse {
 	queue := make(chan *httpResponse)
 	responses := []*httpResponse{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
 	client := http.Client{
-		Timeout: time.Duration(time.Duration(timeout) * time.Second),
+		Timeout:   time.Duration(time.Duration(timeout) * time.Second),
+		Transport: tr,
 	}
 
 	for _, urlBytes := range urls {
